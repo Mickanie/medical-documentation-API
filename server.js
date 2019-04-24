@@ -8,13 +8,11 @@ const router = express.Router();
 const baseID = 10000;
 
 let activeUser = {
-  accountType: "doctor", //z logowania
-  ID: "12121", //z logowania
-  name: "Adam Górski" //z bazy
+  accountType: "",
+  ID: "",
+  name: ""
 };
-let patientID = "11111";
-//let doctorID = "12312";
-//post do bazy danych po imię i nazwisko:
+let patientID = "";
 
 const client = new MongoClient(
   "mongodb+srv://dokumenty-cyfrowe:kardiologia@dokumentycyfrowe-ck4e6.gcp.mongodb.net/test?retryWrites=true",
@@ -130,7 +128,6 @@ router.post("/new-document", async (req, res) => {
     documentType,
     title,
     testDate,
-    testTime,
     orderingDoctor,
     performingDoctor,
     content
@@ -139,7 +136,7 @@ router.post("/new-document", async (req, res) => {
     documentType,
     title,
     patientID, //from variable
-    testDate: `${testDate} ${testTime}`,
+    testDate,
     orderingDoctor,
     performingDoctor,
     describingDoctor: activeUser.name, //from variable
@@ -242,20 +239,47 @@ router.post("/lab-result", async (req, res) => {
 });
 
 //LOGOWANIE
-router.post("/", (req, res) => {
+router.post("/login", async (req, res) => {
   const { login, password } = req.body;
+  const db = client.db("DokumentyCyfrowe");
+  let collection;
+  let accountType;
 
-  //hashowanie hasła, sprawdzenie poprawności hasła i loginu
+  if (login[0] === "P") {
+    collection = db.collection("Pacjent");
+    accountType = "patient";
+  } else if (login[0] === "D") {
+    collection = db.collection("Lekarz");
+    accountType = "doctor";
+  } else {
+    collection = db.collection("Laborant");
+    accountType = "lab";
+  }
+  const user = await collection.findOne({ login });
+  if (user.password === password) {
+    activeUser = {
+      accountType,
+      name: `${user.name} ${user.surname}`,
+      ID: user.ID
+    };
+    if (accountType === "patient") {
+      patientID = user.ID;
+    }
 
-  //do testowania w Postmanie:
-  res.status(200).send(login);
+    res.status(200).send(activeUser);
+    return activeUser;
+  } else {
+    
+    res.status(400).json("FAIL");
+    //return "FAIL";
+  }
 });
 
 //REJESTRACJA
 router.post("/register", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const accountType = req.body.accountType;
-  if (accountType == "doctor") {
+  if (accountType === "doctor") {
     const { name, surname, pesel, PWZ, specialization, password } = req.body;
     const collection = db.collection("Lekarz");
     const doctors = await collection.find({}).toArray();
@@ -265,7 +289,7 @@ router.post("/register", async (req, res) => {
     newDoctor = {
       name,
       surname,
-      pesel,
+      PESEL: pesel,
       PWZ,
       specialization,
       password,
@@ -273,8 +297,8 @@ router.post("/register", async (req, res) => {
     };
     collection.insertOne(newDoctor);
     res.status(200).send(newDoctor);
-  } else if (accountType == "patient") {
-    const { name, surname, sex, dob, pesel, password } = req.body;
+  } else if (accountType === "patient") {
+    const { name, surname, sex, dob, pesel, password, address } = req.body;
     const collection = db.collection("Pacjent");
     const patients = await collection.find({}).toArray();
     const patientCount = baseID + patients.length;
@@ -287,14 +311,16 @@ router.post("/register", async (req, res) => {
       surname,
       sex,
       age,
-      pesel,
-      dob,
+      PESEL: pesel,
+      dateOfBirth: dob,
+      address,
       password,
-      login
+      login,
+      id: patientCount
     };
     collection.insertOne(newPatient);
     res.status(200).send(newPatient);
-  } else if (accountType == "lab") {
+  } else if (accountType === "lab") {
     const { name, surname, dob, pesel, password } = req.body;
     const collection = db.collection("Laborant");
     const labs = await collection.find({}).toArray();
