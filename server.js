@@ -4,7 +4,6 @@ const ObjectId = require("mongodb").ObjectId;
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const router = express.Router();
-
 const baseID = 10000;
 
 let activeUser = {
@@ -40,34 +39,14 @@ app.use(bodyParser.urlencoded({ extended: true })); //do czytania formularzy
 app.use(bodyParser.json());
 app.use(router);
 
-//test połączenia z bazą
-router.get("/database-test", async (req, res) => {
-  const db = client.db("DokumentyCyfrowe");
-  const doctors = await db
-    .collection("Lekarz")
-    .find({})
-    .toArray();
-  res.send(doctors);
-});
-//test dodawania do bazy
-router.post("/database", (req, res) => {
-  const { name, surname } = req.body;
-  const db = client.db("DokumentyCyfrowe");
-  const collection = db.collection("Lekarz");
-  newDoctor = {
-    name,
-    surname
-  };
-  collection.insertOne(newDoctor);
-  res.status(200).send("Added a doctor");
-});
-
+//WYBRANIE ID PACJENTA PRZEZ LEKARZA (DoctorPage.js)
 router.put("/get-patient-data", async (req, res) => {
   patientID = req.body.patientID;
   res.send(patientID);
   return patientID;
 });
 
+//POBRANIE DOKUMENTACJI (Documentation.js)
 router.get("/documentation", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   if (patientID !== "") {
@@ -87,6 +66,7 @@ router.get("/documentation", async (req, res) => {
   }
 });
 
+//POBRANIE ZALECEŃ (Recommednations.js)
 router.get("/recommendations", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   if (patientID !== "") {
@@ -100,6 +80,7 @@ router.get("/recommendations", async (req, res) => {
   }
 });
 
+//POBRANIE ZADAŃ PACJENTA (PatientPage.js, DoctorPage.js)
 router.get("/medical-process", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   if (patientID !== "") {
@@ -107,12 +88,12 @@ router.get("/medical-process", async (req, res) => {
       .collection("Zadanie")
       .find({ patientID })
       .toArray();
-
     res.send(tasks);
     return tasks;
   }
 });
 
+//POBRANIE INF O PACJENCIE (SideBar.js)
 router.get("/patient", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   if (patientID !== "") {
@@ -122,6 +103,7 @@ router.get("/patient", async (req, res) => {
   return patient;
 });
 
+//DODANIE NOWEGO DOKUMENTU (NewDocument.js)
 router.post("/new-document", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const {
@@ -135,20 +117,20 @@ router.post("/new-document", async (req, res) => {
   newDocument = {
     documentType,
     title,
-    patientID, //from variable
+    patientID, //ze zmiennej
     testDate,
     orderingDoctor,
     performingDoctor,
-    describingDoctor: activeUser.name, //from variable
+    describingDoctor: activeUser.name, //ze zmiennej
     content
   };
   await db.collection("Badanie").insertOne(newDocument);
   res.send(newDocument);
 });
 
+//DODANIE ZALECENIA (NewRecommendation.js)
 router.post("/new-recommendation", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
-
   const { date, content, attachments } = req.body;
   const attachmentsShort = attachments.map(item => {
     item = {
@@ -169,6 +151,7 @@ router.post("/new-recommendation", async (req, res) => {
   res.send(newRecommendation);
 });
 
+//ZAŁĄCZANIE DOKUMENTU DO ZALECENIA (NewAttachment.js)
 router.post("/attach-document", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
 
@@ -179,6 +162,8 @@ router.post("/attach-document", async (req, res) => {
   res.send(attachedDocument._id);
   return attachedDocument._id;
 });
+
+//DODANIE NOWEGO ZADANIE (MedicalProcess.js, SideBar.js)
 router.post("/new-task", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const { title, date, completed, details } = req.body;
@@ -200,8 +185,8 @@ router.post("/new-task", async (req, res) => {
   return tasks;
 });
 
+//ZMIANA STATUSU ZADANIA (ukończone, do zrobienia) (SideBar.js, MedicalProcess.js)
 router.put("/complete-task", async (req, res) => {
-  //const id = "5cb6460e020b9b41ec522833"
   const { id, completed } = req.body;
   const db = client.db("DokumentyCyfrowe");
   const obj = new ObjectId(id);
@@ -212,39 +197,36 @@ router.put("/complete-task", async (req, res) => {
   res.status(200).send(task);
 });
 
-//LABORANT
+//LABORANT - DODAWANIE WYNIKÓW BADAŃ (LabTechnician.js)
 router.post("/lab-result", async (req, res) => {
-  console.log(req.body);
   const db = client.db("DokumentyCyfrowe");
   const {
     labPatientID,
+    orderingDoctor,
     title,
     collectionDate,
-    issueDate,
-
+    date,
     results
   } = req.body;
   const newLabResult = {
     patientID: labPatientID,
     title,
-
+    orderingDoctor,
     collectionDate,
-    issueDate,
+    date,
     labTechnician: activeUser.name,
     results
   };
   await db.collection("BadanieLaboratoryjne").insertOne(newLabResult);
-
   res.status(200).send(newLabResult);
 });
 
-//LOGOWANIE
+//LOGOWANIE (Main.js)
 router.post("/login", async (req, res) => {
   const { login, password } = req.body;
   const db = client.db("DokumentyCyfrowe");
   let collection;
   let accountType;
-
   if (login[0] === "P") {
     collection = db.collection("Pacjent");
     accountType = "patient";
@@ -271,11 +253,11 @@ router.post("/login", async (req, res) => {
   } else {
     
     res.status(400).json("FAIL");
-    //return "FAIL";
+
   }
 });
 
-//REJESTRACJA
+//REJESTRACJA (Register.js)
 router.post("/register", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const accountType = req.body.accountType;
@@ -339,6 +321,7 @@ router.post("/register", async (req, res) => {
     res.status(200).send(newLab);
   }
 });
+
 client.connect(() => {
   app.listen(process.env.PORT || 3000, () => {
     console.log(`Server started on port ${process.env.PORT}`);
