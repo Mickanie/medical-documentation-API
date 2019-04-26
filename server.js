@@ -46,6 +46,12 @@ router.put("/get-patient-data", async (req, res) => {
   return patientID;
 });
 
+//POBRANIE INF O ZALOGOWANYM UŻYTKOWNIKU (Recommendations.js)
+router.get("/active-user", (req, res) => {
+  console.log(activeUser);
+  res.send(activeUser);
+});
+
 //POBRANIE DOKUMENTACJI (Documentation.js)
 router.get("/documentation", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
@@ -251,9 +257,7 @@ router.post("/login", async (req, res) => {
     res.status(200).send(activeUser);
     return activeUser;
   } else {
-    
     res.status(400).json("FAIL");
-
   }
 });
 
@@ -323,7 +327,7 @@ router.post("/register", async (req, res) => {
 });
 
 client.connect(() => {
-  app.listen(process.env.PORT || 3000, () => {
+  app.listen(/*process.env.PORT || */ 3000, () => {
     console.log(`Server started on port ${process.env.PORT}`);
   });
 });
