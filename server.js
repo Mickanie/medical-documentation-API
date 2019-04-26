@@ -169,7 +169,7 @@ router.post("/attach-document", async (req, res) => {
   return attachedDocument._id;
 });
 
-//DODANIE NOWEGO ZADANIE (MedicalProcess.js, SideBar.js)
+//DODANIE NOWEGO ZADANIA (MedicalProcess.js, SideBar.js)
 router.post("/new-task", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const { title, date, completed, details } = req.body;
@@ -179,7 +179,7 @@ router.post("/new-task", async (req, res) => {
     date,
     completed,
     details,
-    addedBy: doctor
+    addedBy: activeUser.name
   };
   await db.collection("Zadanie").insertOne(newTask);
   //aktualizacja widoku
@@ -327,7 +327,7 @@ router.post("/register", async (req, res) => {
 });
 
 client.connect(() => {
-  app.listen(process.env.PORT ||  3000, () => {
+  app.listen(process.env.PORT || 3000, () => {
     console.log(`Server started on port ${process.env.PORT}`);
   });
 });
