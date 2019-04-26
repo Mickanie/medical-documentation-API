@@ -115,7 +115,7 @@ router.post("/new-document", async (req, res) => {
   const {
     documentType,
     title,
-    testDate,
+    date,
     orderingDoctor,
     performingDoctor,
     content
@@ -124,7 +124,7 @@ router.post("/new-document", async (req, res) => {
     documentType,
     title,
     patientID, //ze zmiennej
-    testDate,
+    date,
     orderingDoctor,
     performingDoctor,
     describingDoctor: activeUser.name, //ze zmiennej
