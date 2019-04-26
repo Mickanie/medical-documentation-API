@@ -115,7 +115,7 @@ router.post("/new-document", async (req, res) => {
   const {
     documentType,
     title,
-    date,
+    testDate,
     orderingDoctor,
     performingDoctor,
     content
@@ -124,7 +124,7 @@ router.post("/new-document", async (req, res) => {
     documentType,
     title,
     patientID, //ze zmiennej
-    date,
+    testDate,
     orderingDoctor,
     performingDoctor,
     describingDoctor: activeUser.name, //ze zmiennej
@@ -203,6 +203,17 @@ router.put("/complete-task", async (req, res) => {
   res.status(200).send(task);
 });
 
+//LABORANT - POBRANIE DANYCH O PARAMETRACH LABORATORYJNYCH
+router.get("/lab-data", async (req, res) => {
+  const db = client.db("DokumentyCyfrowe");
+  parameters = await db
+    .collection("ParametryLaboratoryjne")
+    .find({})
+    .toArray();
+  res.json(parameters);
+  return parameters;
+});
+
 //LABORANT - DODAWANIE WYNIKÓW BADAŃ (LabTechnician.js)
 router.post("/lab-result", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
@@ -210,16 +221,16 @@ router.post("/lab-result", async (req, res) => {
     labPatientID,
     orderingDoctor,
     title,
-    collectionDate,
-    date,
+    testDate,
+    issueDate,
     results
   } = req.body;
   const newLabResult = {
     patientID: labPatientID,
     title,
     orderingDoctor,
-    collectionDate,
-    date,
+    testDate,
+    issueDate,
     labTechnician: activeUser.name,
     results
   };
