@@ -48,14 +48,19 @@ router.put("/get-patient-data", async (req, res) => {
 
 //EDYCJA DANYCH PACJENTA (SideBar.js)
 router.put("/edit-patient-data", async (req, res) => {
-  const { name /*sex, PESEL, telephone, address, icd10*/ } = req.body;
+  const { name, sex, PESEL, telephone, address, icd10 } = req.body;
   const db = client.db("DokumentyCyfrowe");
   await db.collection("Pacjent").updateOne(
     { id: "12345" },
     {
       $set: {
         name: name.split(" ")[0],
-        surname: name.split(" ")[1] /*, sex, PESEL, telephone, address, icd10 */
+        surname: name.split(" ")[1],
+        sex,
+        PESEL,
+        telephone,
+        address,
+        icd10
       }
     }
   );
@@ -187,7 +192,7 @@ router.post("/attach-document", async (req, res) => {
   return attachedDocument._id;
 });
 
-//DODANIE NOWEGO ZADANIA (MedicalProcess.js, SideBar.js)
+//DODANIE NOWEGO ZADANIA (DoctorPage.js)
 router.post("/new-task", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const { title, date, completed, details } = req.body;
@@ -209,7 +214,7 @@ router.post("/new-task", async (req, res) => {
   return tasks;
 });
 
-//ZMIANA STATUSU ZADANIA (ukończone, do zrobienia) (SideBar.js, MedicalProcess.js)
+//ZMIANA STATUSU ZADANIA (ukończone, do zrobienia) (DoctorPage.js)
 router.put("/complete-task", async (req, res) => {
   const { id, completed } = req.body;
   const db = client.db("DokumentyCyfrowe");
@@ -219,6 +224,21 @@ router.put("/complete-task", async (req, res) => {
     .updateOne({ _id: obj }, { $set: { completed } });
   task = await db.collection("Zadanie").findOne({ _id: obj });
   res.status(200).send(task);
+});
+
+//EDYCJA ZADANIA (DoctorPage.js)
+router.put("/edit-task", async (req, res) => {
+  const { id, title, details, date } = req.body;
+  const db = client.db("DokumentyCyfrowe");
+  const obj = new ObjectId(id);
+  await db
+    .collection("Zadanie")
+    .updateOne({ _id: obj }, { $set: { title, details, date } });
+  const tasks = await db
+    .collection("Zadanie")
+    .find({ patientID })
+    .toArray();
+  res.status(200).json(tasks);
 });
 
 //LABORANT - POBRANIE DANYCH O PARAMETRACH LABORATORYJNYCH (LabTechnician.js)
