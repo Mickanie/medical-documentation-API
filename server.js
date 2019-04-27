@@ -46,6 +46,24 @@ router.put("/get-patient-data", async (req, res) => {
   return patientID;
 });
 
+//EDYCJA DANYCH PACJENTA (SideBar.js)
+router.put("/edit-patient-data", async (req, res) => {
+  const { name /*sex, PESEL, telephone, address, icd10*/ } = req.body;
+  const db = client.db("DokumentyCyfrowe");
+  await db.collection("Pacjent").updateOne(
+    { id: "12345" },
+    {
+      $set: {
+        name: name.split(" ")[0],
+        surname: name.split(" ")[1] /*, sex, PESEL, telephone, address, icd10 */
+      }
+    }
+  );
+  const patient = await db.collection("Pacjent").findOne({ id: "12345" });
+  res.json(patient);
+  return patient;
+});
+
 //POBRANIE INF O ZALOGOWANYM UŻYTKOWNIKU (Recommendations.js)
 router.get("/active-user", (req, res) => {
   console.log(activeUser);
@@ -103,7 +121,7 @@ router.get("/medical-process", async (req, res) => {
 router.get("/patient", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   if (patientID !== "") {
-    patient = await db.collection("Pacjent").findOne({ ID: patientID });
+    patient = await db.collection("Pacjent").findOne({ id: patientID });
   }
   res.send(patient);
   return patient;
@@ -203,7 +221,7 @@ router.put("/complete-task", async (req, res) => {
   res.status(200).send(task);
 });
 
-//LABORANT - POBRANIE DANYCH O PARAMETRACH LABORATORYJNYCH
+//LABORANT - POBRANIE DANYCH O PARAMETRACH LABORATORYJNYCH (LabTechnician.js)
 router.get("/lab-data", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   parameters = await db
