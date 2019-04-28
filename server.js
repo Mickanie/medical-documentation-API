@@ -297,14 +297,14 @@ router.post("/login", async (req, res) => {
     activeUser = {
       accountType,
       name: `${user.name} ${user.surname}`,
-      ID: user.ID
+      ID: user.id
     };
     if (accountType === "patient") {
-      patientID = user.ID;
+      patientID = user.id;
     }
 
     res.status(200).send(activeUser);
-    return activeUser;
+       return activeUser;
   } else {
     res.status(400).json("FAIL");
   }
