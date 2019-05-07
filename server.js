@@ -41,9 +41,23 @@ app.use(router);
 
 //WYBRANIE ID PACJENTA PRZEZ LEKARZA (DoctorPage.js)
 router.put("/get-patient-data", async (req, res) => {
-  patientID = req.body.patientID;
-  res.send(patientID);
-  return patientID;
+  const db = client.db("DokumentyCyfrowe");
+  if (req.body.patientID) {
+    patient = await db
+      .collection("Pacjent")
+      .findOne({ id: req.body.patientID });
+    if (patient) {
+      patientID = req.body.patientID;
+      res.status(200).send(patientID);
+      return patientID;
+    } else {
+      res.status(400).send("NO SUCH PATIENT");
+    }
+  } else {
+    patientID = req.body.patientID;
+    res.status(200).send(patientID);
+    return patientID;
+  }
 });
 
 //EDYCJA DANYCH PACJENTA (SideBar.js)
@@ -73,6 +87,17 @@ router.put("/edit-patient-data", async (req, res) => {
 router.get("/active-user", (req, res) => {
   console.log(activeUser);
   res.send(activeUser);
+});
+
+//POBRANIE INF O PACJENCIE (SideBar.js)
+router.get("/patient", async (req, res) => {
+  const db = client.db("DokumentyCyfrowe");
+  if (patientID !== "") {
+    patient = await db.collection("Pacjent").findOne({ id: patientID });
+
+    res.status(200).send(patient);
+    return patient;
+  }
 });
 
 //POBRANIE DOKUMENTACJI (Documentation.js)
@@ -120,16 +145,6 @@ router.get("/medical-process", async (req, res) => {
     res.send(tasks);
     return tasks;
   }
-});
-
-//POBRANIE INF O PACJENCIE (SideBar.js)
-router.get("/patient", async (req, res) => {
-  const db = client.db("DokumentyCyfrowe");
-  if (patientID !== "") {
-    patient = await db.collection("Pacjent").findOne({ id: patientID });
-  }
-  res.send(patient);
-  return patient;
 });
 
 //DODANIE NOWEGO DOKUMENTU (NewDocument.js)
@@ -293,18 +308,22 @@ router.post("/login", async (req, res) => {
     accountType = "lab";
   }
   const user = await collection.findOne({ login });
-  if (user.password === password) {
-    activeUser = {
-      accountType,
-      name: `${user.name} ${user.surname}`,
-      ID: user.id
-    };
-    if (accountType === "patient") {
-      patientID = user.id;
-    }
+  if (user) {
+    if (user.password === password) {
+      activeUser = {
+        accountType,
+        name: `${user.name} ${user.surname}`,
+        ID: user.id
+      };
+      if (accountType === "patient") {
+        patientID = user.id;
+      }
 
-    res.status(200).send(activeUser);
-       return activeUser;
+      res.status(200).send(activeUser);
+      return activeUser;
+    } else {
+      res.status(400).json("FAIL");
+    }
   } else {
     res.status(400).json("FAIL");
   }
@@ -351,7 +370,7 @@ router.post("/register", async (req, res) => {
       address,
       password,
       login,
-      id: patientCount
+      id: patientCount.toString()
     };
     collection.insertOne(newPatient);
     res.status(200).send(newPatient);
