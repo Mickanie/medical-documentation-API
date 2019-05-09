@@ -223,13 +223,13 @@ router.post("/new-task", async (req, res) => {
     nextTasks: []
   };
   await db.collection("Zadanie").insertOne(newTask, async function() {
+    //dodanie odnośnika do zadania poprzedzającego
     const newTaskId = newTask._id;
     const previousTaskId = new ObjectId(previousTask);
     await db
       .collection("Zadanie")
       .updateOne({ _id: previousTaskId }, { $push: { nextTasks: newTaskId } });
   });
-  //dodanie odnośnika do zadania poprzedzającego
 
   //aktualizacja widoku
   tasks = await db
@@ -254,13 +254,53 @@ router.put("/complete-task", async (req, res) => {
 
 //EDYCJA ZADANIA (DoctorPage.js)
 router.put("/edit-task", async (req, res) => {
-  const { id, title, details, date, previousTask } = req.body;
+  const { id, title, details, date, previousTaskId } = req.body;
   const db = client.db("DokumentyCyfrowe");
-  const obj = new ObjectId(id);
+  const currentTaskId = ObjectId(id);
+  //console.log(id);
+ // console.log(currentTaskId)
+  let previousTask;
+  if (previousTaskId != "") {
+    previousTask = ObjectId(previousTaskId);
+  } else {
+    previousTask = "";
+  }
+ // console.log(previousTaskId);
+ // console.log(previousTask);
+  //usunięcie odnośnika do zadania dotychczas ustawionego jako poprzedzające (jeśli jakieś bylo)
+  const currentTask = await db
+    .collection("Zadanie")
+    .findOne({ _id: currentTaskId });
+
+  previousTask_before = currentTask.previousTask;
+  if (previousTask_before) {
+    //console.log(previousTask_before);
+    await db
+      .collection("Zadanie")
+      .updateOne(
+        { _id: previousTask_before },
+        { $pull: { nextTasks: currentTaskId } }
+      );
+  }
+
+  //zmiana treści zadania
   await db
     .collection("Zadanie")
-    .updateOne({ _id: obj }, { $set: { title, details, date, previousTask } });
-    //aktualizacja widoku
+    .updateOne(
+      { _id: currentTaskId },
+      { $set: { title, details, date, previousTask } }
+    );
+
+  //dodanie odnośnika od poprzedzającego zadania do bieżącego
+  if (previousTask != "") {
+    await db
+      .collection("Zadanie")
+      .updateOne(
+        { _id: previousTask },
+        { $push: { nextTasks: currentTaskId } }
+      );
+  }
+  //aktualizacja widoku zadań
   const tasks = await db
     .collection("Zadanie")
     .find({ patientID })
