@@ -210,16 +210,27 @@ router.post("/attach-document", async (req, res) => {
 //DODANIE NOWEGO ZADANIA (DoctorPage.js)
 router.post("/new-task", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
-  const { title, date, completed, details } = req.body;
+
+  const { title, date, completed, details, previousTask } = req.body;
   const newTask = {
     patientID,
     title,
     date,
     completed,
     details,
-    addedBy: activeUser.name
+    addedBy: activeUser.name,
+    previousTask,
+    nextTasks: []
   };
-  await db.collection("Zadanie").insertOne(newTask);
+  await db.collection("Zadanie").insertOne(newTask, async function() {
+    const newTaskId = newTask._id;
+    const previousTaskId = new ObjectId(previousTask);
+    await db
+      .collection("Zadanie")
+      .updateOne({ _id: previousTaskId }, { $push: { nextTasks: newTaskId } });
+  });
+  //dodanie odnośnika do zadania poprzedzającego
+
   //aktualizacja widoku
   tasks = await db
     .collection("Zadanie")
@@ -243,12 +254,13 @@ router.put("/complete-task", async (req, res) => {
 
 //EDYCJA ZADANIA (DoctorPage.js)
 router.put("/edit-task", async (req, res) => {
-  const { id, title, details, date } = req.body;
+  const { id, title, details, date, previousTask } = req.body;
   const db = client.db("DokumentyCyfrowe");
   const obj = new ObjectId(id);
   await db
     .collection("Zadanie")
-    .updateOne({ _id: obj }, { $set: { title, details, date } });
+    .updateOne({ _id: obj }, { $set: { title, details, date, previousTask } });
+    //aktualizacja widoku
   const tasks = await db
     .collection("Zadanie")
     .find({ patientID })
@@ -281,6 +293,7 @@ router.post("/lab-result", async (req, res) => {
   const newLabResult = {
     patientID: labPatientID,
     title,
+    documentType: "Badanie krwi",
     orderingDoctor,
     testDate,
     issueDate,
