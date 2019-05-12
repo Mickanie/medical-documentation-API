@@ -3,8 +3,10 @@ const MongoClient = require("mongodb").MongoClient;
 const ObjectId = require("mongodb").ObjectId;
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const bcrypt = require("bcrypt"); //szyfrowanie hasła
 const router = express.Router();
 const baseID = 10000;
+const saltRounds = 10;
 
 let activeUser = {
   accountType: "",
@@ -172,12 +174,13 @@ router.post("/new-document", async (req, res) => {
     performingDoctor,
     content
   } = req.body;
+  const referralObject = ObjectId(referralID);
   newDocument = {
     documentType,
     title,
     patientID, //ze zmiennej
     testDate,
-    referralID,
+    referral: referralObject,
     orderingDoctor,
     performingDoctor,
     describingDoctor: activeUser.name, //ze zmiennej
@@ -337,6 +340,7 @@ router.get("/lab-data", async (req, res) => {
 //LABORANT - DODAWANIE WYNIKÓW BADAŃ (LabTechnician.js)
 router.post("/lab-result", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
+
   const {
     labPatientID,
     labOrder,
@@ -346,11 +350,12 @@ router.post("/lab-result", async (req, res) => {
     issueDate,
     results
   } = req.body;
+  const labOrderObject = ObjectId(labOrder);
   const newLabResult = {
     patientID: labPatientID,
     title,
     documentType: "Badanie krwi",
-    labOrder,
+    labOrder: labOrderObject,
     orderingDoctor,
     testDate,
     issueDate,
@@ -364,6 +369,8 @@ router.post("/lab-result", async (req, res) => {
 //LOGOWANIE (Main.js)
 router.post("/login", async (req, res) => {
   const { login, password } = req.body;
+
+ 
   const db = client.db("DokumentyCyfrowe");
   let collection;
   let accountType;
@@ -379,21 +386,24 @@ router.post("/login", async (req, res) => {
   }
   const user = await collection.findOne({ login });
   if (user) {
-    if (user.password === password) {
-      activeUser = {
-        accountType,
-        name: `${user.name} ${user.surname}`,
-        ID: user.id
-      };
-      if (accountType === "patient") {
-        patientID = user.id;
-      }
+    //console.log(user.password);
+    await bcrypt.compare(password, user.password, function(err, result) {
+      if (result === true) {
+        activeUser = {
+          accountType,
+          name: `${user.name} ${user.surname}`,
+          ID: user.id
+        };
+        if (accountType === "patient") {
+          patientID = user.id;
+        }
 
-      res.status(200).send(activeUser);
-      return activeUser;
-    } else {
-      res.status(400).json("FAIL");
-    }
+        res.status(200).send(activeUser);
+        return activeUser;
+      } else {
+        res.status(400).json("FAIL");
+      }
+    });
   } else {
     res.status(400).json("FAIL");
   }
@@ -403,26 +413,37 @@ router.post("/login", async (req, res) => {
 router.post("/register", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const accountType = req.body.accountType;
+
   if (accountType === "doctor") {
-    const { name, surname, pesel, PWZ, specialization, password } = req.body;
+    const { name, surname, PWZ, specialization, password } = req.body;
     const collection = db.collection("Lekarz");
     const doctors = await collection.find({}).toArray();
     const doctorCount = baseID + doctors.length;
     const login = "D" + doctorCount;
 
+    const hashPassword = bcrypt.hashSync(password, saltRounds);
+    console.log(hashPassword);
     newDoctor = {
       name,
       surname,
-      PESEL: pesel,
       PWZ,
       specialization,
-      password,
+      password: hashPassword,
       login
     };
     collection.insertOne(newDoctor);
     res.status(200).send(newDoctor);
   } else if (accountType === "patient") {
-    const { name, surname, sex, dob, pesel, password, address } = req.body;
+    const {
+      name,
+      surname,
+      sex,
+      dob,
+      pesel,
+      password,
+      address,
+      telephone
+    } = req.body;
     const collection = db.collection("Pacjent");
     const patients = await collection.find({}).toArray();
     const patientCount = baseID + patients.length;
@@ -430,6 +451,8 @@ router.post("/register", async (req, res) => {
     const now = new Date();
     const yearOfBirth = parseInt(dob.split("-")[0]);
     const age = now.getFullYear() - yearOfBirth;
+    const hashPassword = bcrypt.hashSync(password, saltRounds);
+    console.log(hashPassword);
     newPatient = {
       name,
       surname,
@@ -438,25 +461,25 @@ router.post("/register", async (req, res) => {
       PESEL: pesel,
       dateOfBirth: dob,
       address,
-      password,
+      telephone,
+      password: hashPassword,
       login,
       id: patientCount.toString()
     };
     collection.insertOne(newPatient);
     res.status(200).send(newPatient);
   } else if (accountType === "lab") {
-    const { name, surname, dob, pesel, password } = req.body;
+    const { name, surname, password } = req.body;
     const collection = db.collection("Laborant");
     const labs = await collection.find({}).toArray();
     const labCount = baseID + labs.length;
     const login = "L" + labCount;
+    const hashPassword = bcrypt.hashSync(password, saltRounds);
 
     newLab = {
       name,
       surname,
-      pesel,
-      dob,
-      password,
+      password: hashPassword,
       login
     };
     collection.insertOne(newLab);
