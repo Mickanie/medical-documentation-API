@@ -147,6 +147,19 @@ router.get("/medical-process", async (req, res) => {
   }
 });
 
+//POBRANIE ZAŁĄCZONYCH DOKUMENTÓW (NewDocument.js)
+router.get("/attached-documents", async (req, res) => {
+  const db = client.db("DokumentyCyfrowe");
+  if (patientID !== "") {
+    attachedDocuments = await db
+      .collection("Zalacznik")
+      .find({ patientID })
+      .toArray();
+    res.json(attachedDocuments);
+    return attachedDocuments;
+  }
+});
+
 //DODANIE NOWEGO DOKUMENTU (NewDocument.js)
 router.post("/new-document", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
@@ -154,6 +167,7 @@ router.post("/new-document", async (req, res) => {
     documentType,
     title,
     testDate,
+    referralID,
     orderingDoctor,
     performingDoctor,
     content
@@ -163,6 +177,7 @@ router.post("/new-document", async (req, res) => {
     title,
     patientID, //ze zmiennej
     testDate,
+    referralID,
     orderingDoctor,
     performingDoctor,
     describingDoctor: activeUser.name, //ze zmiennej
@@ -258,15 +273,15 @@ router.put("/edit-task", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const currentTaskId = ObjectId(id);
   //console.log(id);
- // console.log(currentTaskId)
+  // console.log(currentTaskId)
   let previousTask;
   if (previousTaskId != "") {
     previousTask = ObjectId(previousTaskId);
   } else {
     previousTask = "";
   }
- // console.log(previousTaskId);
- // console.log(previousTask);
+  // console.log(previousTaskId);
+  // console.log(previousTask);
   //usunięcie odnośnika do zadania dotychczas ustawionego jako poprzedzające (jeśli jakieś bylo)
   const currentTask = await db
     .collection("Zadanie")
@@ -324,6 +339,7 @@ router.post("/lab-result", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   const {
     labPatientID,
+    labOrder,
     orderingDoctor,
     title,
     testDate,
@@ -334,6 +350,7 @@ router.post("/lab-result", async (req, res) => {
     patientID: labPatientID,
     title,
     documentType: "Badanie krwi",
+    labOrder,
     orderingDoctor,
     testDate,
     issueDate,
