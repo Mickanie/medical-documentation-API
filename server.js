@@ -67,7 +67,7 @@ router.put("/edit-patient-data", async (req, res) => {
   const { name, sex, PESEL, telephone, address, icd10 } = req.body;
   const db = client.db("DokumentyCyfrowe");
   await db.collection("Pacjent").updateOne(
-    { id: "12345" },
+    { id: patientID },
     {
       $set: {
         name: name.split(" ")[0],
@@ -80,7 +80,7 @@ router.put("/edit-patient-data", async (req, res) => {
       }
     }
   );
-  const patient = await db.collection("Pacjent").findOne({ id: "12345" });
+  const patient = await db.collection("Pacjent").findOne({ id: patientID });
   res.json(patient);
   return patient;
 });
