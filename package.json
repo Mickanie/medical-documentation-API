@@ -17,6 +17,7 @@
     "express": "^4.16.4",
     "express-fileupload": "^1.1.4",
     "mongodb": "^3.2.3",
-    "nodemon": "^1.18.11"
+    "nodemon": "^1.18.11",
+    "pdfkit": "^0.9.1"
   }
 }

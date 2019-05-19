@@ -7,6 +7,7 @@ const bcrypt = require("bcrypt"); //szyfrowanie hasła
 const router = express.Router();
 const baseID = 10000;
 const saltRounds = 10;
+const PDFDocument = require('pdfkit');
 
 let activeUser = {
   accountType: "",
