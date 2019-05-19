@@ -487,8 +487,103 @@ router.post("/register", async (req, res) => {
   }
 });
 
+
+//ADDED - Get specific patient details
+router.get("/patient-details", async (req, res) => {
+    const db = client.db("DokumentyCyfrowe");
+var id = req.query.id;
+
+if (id == null) {
+    res.status(500).send("Missing id of patient");
+    return;
+}
+
+let patient = await db.collection("Pacjent").findOne({id});
+
+if (patient != null) {
+    res.status(200).send(patient);
+} else {
+    res.status(400).send("NO SUCH PATIENT");
+}
+
+});
+
+//ADDED - Get specific document
+router.get("/document", async (req, res) => {
+    const db = client.db("DokumentyCyfrowe");
+var id = req.query.id;
+
+if (id === "") {
+    res.status(500).send("Missing id of document");
+    return;
+}
+
+console.log(id);
+
+let document = await db.collection("BadanieLaboratoryjne").findOne({ "_id": ObjectId(id) });
+
+console.log(document);
+
+res.send(document);
+});
+
+//POBRANIE PDF Z BADANIA
+router.get("/document-pdf", async (req, res) => {
+    const db = client.db("DokumentyCyfrowe");
+var id = req.query.id;
+
+console.log(id);
+if (id == null) {
+    res.status(500).send("Missing id of document");
+    return;
+}
+
+let document = await db.collection("BadanieLaboratoryjne").findOne({ "_id": ObjectId(id) });
+
+if (document == null) {
+    res.status(500).send("Missing document");
+    return;
+}
+
+var patientId = document.patientID;
+
+if (patientId == null) {
+    res.status(500).send("Missing id of patient");
+    return;
+}
+
+console.log(patientId);
+
+let patient = await db.collection("Pacjent").findOne({id: patientId});
+
+if (patient == null) {
+    res.status(500).send("Missing patient");
+    return;
+}
+
+const doc = new PDFDocument();
+let filename = id;
+
+// Embed a font, set the font size, and render some text
+doc.font('fonts/Arialn.ttf')
+    .fontSize(25)
+    .text('Badanie:' + document.title, 100, 50);
+
+doc.font('fonts/Arialn.ttf')
+    .fontSize(25)
+    .text('Imie:' + patient.name + " " + patient.surname, 100, 100);
+
+res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"')
+res.setHeader('Content-type', 'application/pdf')
+
+doc.y = 300;
+doc.pipe(res);
+doc.end()
+});
+
 client.connect(() => {
   app.listen(process.env.PORT || 3000, () => {
     console.log(`Server started on port ${process.env.PORT}`);
   });
 });
+
