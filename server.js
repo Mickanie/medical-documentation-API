@@ -9,6 +9,8 @@ const baseID = 10000;
 const saltRounds = 10;
 const PDFDocument = require('pdfkit');
 
+var pdfGenerator = require('./PDFGenerator');
+
 let activeUser = {
   accountType: "",
   ID: "",
@@ -563,21 +565,11 @@ if (patient == null) {
 }
 
 const doc = new PDFDocument();
-let filename = id;
+pdfGenerator.generatePdf(doc, document, patient);
 
-// Embed a font, set the font size, and render some text
-doc.font('fonts/Arialn.ttf')
-    .fontSize(25)
-    .text('Badanie:' + document.title, 100, 50);
-
-doc.font('fonts/Arialn.ttf')
-    .fontSize(25)
-    .text('Imie:' + patient.name + " " + patient.surname, 100, 100);
-
-res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"')
+res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
 res.setHeader('Content-type', 'application/pdf')
 
-doc.y = 300;
 doc.pipe(res);
 doc.end()
 });
