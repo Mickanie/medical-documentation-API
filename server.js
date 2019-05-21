@@ -7,7 +7,8 @@ const bcrypt = require("bcrypt"); //szyfrowanie hasła
 const router = express.Router();
 const baseID = 10000;
 const saltRounds = 10;
-const PDFDocument = require('pdfkit');
+const PDFDocument = require("pdfkit");
+const fileUpload = require("express-fileupload");
 
 let activeUser = {
   accountType: "",
@@ -37,7 +38,7 @@ collection.deleteOne(filters)
 const app = express();
 app.use(cors());
 app.use(express.json()); //żeby móc pracować z jsonem
-//app.use(fileUpload());
+app.use(fileUpload());
 app.use(bodyParser.urlencoded({ extended: true })); //do czytania formularzy
 app.use(bodyParser.json());
 app.use(router);
@@ -61,6 +62,13 @@ router.put("/get-patient-data", async (req, res) => {
     res.status(200).send(patientID);
     return patientID;
   }
+});
+
+//POBRANIE WSZYSTKICH PACJENTÓW
+router.get("/patients", async (req, res) => {
+  const db = client.db("DokumentyCyfrowe");
+  const patients = await db.collection("Pacjent").find({}).toArray();
+  res.send(patients);
 });
 
 //EDYCJA DANYCH PACJENTA (SideBar.js)
@@ -166,6 +174,7 @@ router.get("/attached-documents", async (req, res) => {
 //DODANIE NOWEGO DOKUMENTU (NewDocument.js)
 router.post("/new-document", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
+  const images = req.files ? req.files.files : null
   const {
     documentType,
     title,
@@ -173,7 +182,8 @@ router.post("/new-document", async (req, res) => {
     referralID,
     orderingDoctor,
     performingDoctor,
-    content
+    content, 
+    
   } = req.body;
   const referralObject = ObjectId(referralID);
   newDocument = {
@@ -185,9 +195,11 @@ router.post("/new-document", async (req, res) => {
     orderingDoctor,
     performingDoctor,
     describingDoctor: activeUser.name, //ze zmiennej
-    content
+    content,
+    atachments: images
   };
   await db.collection("Badanie").insertOne(newDocument);
+
   res.send(newDocument);
 });
 
@@ -230,7 +242,7 @@ router.post("/attach-document", async (req, res) => {
 router.post("/new-task", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
 
-  const { title, date, completed, details, previousTask } = req.body;
+  const { patientID, title, date, completed, details, previousTask } = req.body;
   const newTask = {
     patientID,
     title,
@@ -241,20 +253,23 @@ router.post("/new-task", async (req, res) => {
     previousTask,
     nextTasks: []
   };
-  await db.collection("Zadanie").insertOne(newTask, async function() {
-    //dodanie odnośnika do zadania poprzedzającego
-    const newTaskId = newTask._id;
+  let newTaskId;
+  await db.collection("Zadanie").insertOne(newTask).then(result=>newTaskId=result.insertedId) 
+ 
+//dodanie odnośnika do zadania poprzedzającego
+  if (previousTask !== "") {
     const previousTaskId = new ObjectId(previousTask);
     await db
       .collection("Zadanie")
       .updateOne({ _id: previousTaskId }, { $push: { nextTasks: newTaskId } });
-  });
+  }
 
   //aktualizacja widoku
-  tasks = await db
+  const tasks = await db
     .collection("Zadanie")
     .find({ patientID })
     .toArray();
+
   res.send(tasks);
   return tasks;
 });
@@ -371,7 +386,6 @@ router.post("/lab-result", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { login, password } = req.body;
 
- 
   const db = client.db("DokumentyCyfrowe");
   let collection;
   let accountType;
@@ -488,103 +502,109 @@ router.post("/register", async (req, res) => {
   }
 });
 
-
 //ADDED - Get specific patient details
 router.get("/patient-details", async (req, res) => {
-    const db = client.db("DokumentyCyfrowe");
-var id = req.query.id;
+  const db = client.db("DokumentyCyfrowe");
+  var id = req.query.id;
 
-if (id == null) {
+  if (id == null) {
     res.status(500).send("Missing id of patient");
     return;
-}
+  }
 
-let patient = await db.collection("Pacjent").findOne({id});
+  let patient = await db.collection("Pacjent").findOne({ id });
 
-if (patient != null) {
+  if (patient != null) {
     res.status(200).send(patient);
-} else {
+  } else {
     res.status(400).send("NO SUCH PATIENT");
-}
-
+  }
 });
 
 //ADDED - Get specific document
 router.get("/document", async (req, res) => {
-    const db = client.db("DokumentyCyfrowe");
-var id = req.query.id;
+  const db = client.db("DokumentyCyfrowe");
+  var id = req.query.id;
 
-if (id === "") {
+  if (id === "") {
     res.status(500).send("Missing id of document");
     return;
-}
+  }
 
-console.log(id);
+  console.log(id);
 
-let document = await db.collection("BadanieLaboratoryjne").findOne({ "_id": ObjectId(id) });
+  let document = await db
+    .collection("BadanieLaboratoryjne")
+    .findOne({ _id: ObjectId(id) });
 
-console.log(document);
+  console.log(document);
 
-res.send(document);
+  res.send(document);
 });
 
 //POBRANIE PDF Z BADANIA
 router.get("/document-pdf", async (req, res) => {
-    const db = client.db("DokumentyCyfrowe");
-var id = req.query.id;
+  const db = client.db("DokumentyCyfrowe");
+  var id = req.query.id;
 
-console.log(id);
-if (id == null) {
+  console.log(id);
+  if (id == null) {
     res.status(500).send("Missing id of document");
     return;
-}
+  }
 
-let document = await db.collection("BadanieLaboratoryjne").findOne({ "_id": ObjectId(id) });
+  let document = await db
+    .collection("BadanieLaboratoryjne")
+    .findOne({ _id: ObjectId(id) });
 
-if (document == null) {
+  if (document == null) {
     res.status(500).send("Missing document");
     return;
-}
+  }
 
-var patientId = document.patientID;
+  var patientId = document.patientID;
 
-if (patientId == null) {
+  if (patientId == null) {
     res.status(500).send("Missing id of patient");
     return;
-}
+  }
 
-console.log(patientId);
+  console.log(patientId);
 
-let patient = await db.collection("Pacjent").findOne({id: patientId});
+  let patient = await db.collection("Pacjent").findOne({ id: patientId });
 
-if (patient == null) {
+  if (patient == null) {
     res.status(500).send("Missing patient");
     return;
-}
+  }
 
-const doc = new PDFDocument();
-let filename = id;
+  const doc = new PDFDocument();
+  let filename = id;
 
-// Embed a font, set the font size, and render some text
-doc.font('fonts/Arialn.ttf')
+  // Embed a font, set the font size, and render some text
+  doc
+    .font("fonts/Arialn.ttf")
     .fontSize(25)
-    .text('Badanie:' + document.title, 100, 50);
+    .text("Badanie:" + document.title, 100, 50);
 
-doc.font('fonts/Arialn.ttf')
+  doc
+    .font("fonts/Arialn.ttf")
     .fontSize(25)
-    .text('Imie:' + patient.name + " " + patient.surname, 100, 100);
+    .text("Imie:" + patient.name + " " + patient.surname, 100, 100);
 
-res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"')
-res.setHeader('Content-type', 'application/pdf')
+  res.setHeader(
+    "Content-disposition",
+    'attachment; filename="' + filename + '"'
+  );
+  res.setHeader("Content-type", "application/pdf");
 
-doc.y = 300;
-doc.pipe(res);
-doc.end()
+  doc.y = 300;
+  doc.pipe(res);
+  doc.end();
 });
 
 client.connect(() => {
-  app.listen(process.env.PORT || 3000, () => {
+  app.listen(process.env.PORT ||  3001, () => {
     console.log(`Server started on port ${process.env.PORT}`);
   });
 });
-
