@@ -11,7 +11,7 @@ const PDFDocument = require("pdfkit");
 const fileUpload = require("express-fileupload");
 
 const examinationPDFGenerator = require('./ExaminationPDFGenerator');
-const attachementnPDFGenerator = require('./AttachmentPDFGenerator');
+const attachmentPDFGenerator = require('./AttachmentPDFGenerator');
 
 let activeUser = {
   accountType: "",
@@ -608,6 +608,8 @@ let document = await db
     .collection("Zalacznik")
     .findOne({ _id: ObjectId(id) });
 
+console.log(document);
+
 if (document == null) {
     res.status(500).send("Missing attachment");
     return;
@@ -629,8 +631,10 @@ if (patient == null) {
     return;
 }
 
+console.log(patient);
+
 const doc = new PDFDocument();
-attachementnPDFGenerator.generateAttachmentPDF(doc, document, patient);
+attachmentPDFGenerator.generateAttachmentPDF(doc, document, patient);
 
 res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
 res.setHeader('Content-type', 'application/pdf')
