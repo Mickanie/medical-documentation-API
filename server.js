@@ -10,6 +10,16 @@ const saltRounds = 10;
 const PDFDocument = require("pdfkit");
 const fileUpload = require("express-fileupload");
 
+const examinationPDFGenerator = require('./ExaminationPDFGenerator');
+const attachementnPDFGenerator = require('./AttachmentPDFGenerator');
+
+let activeUser = {
+  accountType: "",
+  ID: "",
+  name: ""
+};
+let patientID = "";
+
 const client = new MongoClient(
   "mongodb+srv://dokumenty-cyfrowe:kardiologia@dokumentycyfrowe-ck4e6.gcp.mongodb.net/test?retryWrites=true",
   { useNewUrlParser: true }
@@ -531,7 +541,7 @@ router.get("/document", async (req, res) => {
 });
 
 //POBRANIE PDF Z BADANIA
-router.get("/document-pdf", async (req, res) => {
+router.get("/examination-pdf", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   var id = req.query.id;
 
@@ -541,10 +551,17 @@ router.get("/document-pdf", async (req, res) => {
     return;
   }
 
-  let document = await db
+  let badanie = await db
+    .collection("Badanie")
+    .findOne({ _id: ObjectId(id) });
+
+  let badanieLaboratoryjne = await db
     .collection("BadanieLaboratoryjne")
     .findOne({ _id: ObjectId(id) });
 
+
+  let document = [badanie, badanieLaboratoryjne].filter(n => n)[0];
+  console.log(document);
   if (document == null) {
     res.status(500).send("Missing document");
     return;
@@ -566,30 +583,62 @@ router.get("/document-pdf", async (req, res) => {
     return;
   }
 
-  const doc = new PDFDocument();
-  let filename = id;
+const doc = new PDFDocument();
+examinationPDFGenerator.generateExaminationPDF(doc, document, patient);
 
-  // Embed a font, set the font size, and render some text
-  doc
-    .font("fonts/Arialn.ttf")
-    .fontSize(25)
-    .text("Badanie:" + document.title, 100, 50);
+res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
+res.setHeader('Content-type', 'application/pdf')
 
-  doc
-    .font("fonts/Arialn.ttf")
-    .fontSize(25)
-    .text("Imie:" + patient.name + " " + patient.surname, 100, 100);
-
-  res.setHeader(
-    "Content-disposition",
-    'attachment; filename="' + filename + '"'
-  );
-  res.setHeader("Content-type", "application/pdf");
-
-  doc.y = 300;
-  doc.pipe(res);
-  doc.end();
+doc.pipe(res);
+doc.end();
 });
+
+//POBRANIE PDF Z ZALACZNIKA
+router.get("/attachment-pdf", async (req, res) => {
+    const db = client.db("DokumentyCyfrowe");
+var id = req.query.id;
+
+console.log(id);
+if (id == null) {
+    res.status(500).send("Missing id of attachment");
+    return;
+}
+
+let document = await db
+    .collection("Zalacznik")
+    .findOne({ _id: ObjectId(id) });
+
+if (document == null) {
+    res.status(500).send("Missing attachment");
+    return;
+}
+
+var patientId = document.patientID;
+
+if (patientId == null) {
+    res.status(500).send("Missing id of patient");
+    return;
+}
+
+console.log(patientId);
+
+let patient = await db.collection("Pacjent").findOne({ id: patientId });
+
+if (patient == null) {
+    res.status(500).send("Missing patient");
+    return;
+}
+
+const doc = new PDFDocument();
+attachementnPDFGenerator.generateAttachmentPDF(doc, document, patient);
+
+res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
+res.setHeader('Content-type', 'application/pdf')
+
+doc.pipe(res);
+doc.end();
+});
+
 
 client.connect(() => {
   app.listen(process.env.PORT ||  3000, () => {
