@@ -46,38 +46,21 @@ app.use(bodyParser.urlencoded({ extended: true })); //do czytania formularzy
 app.use(bodyParser.json());
 app.use(router);
 
-//WYBRANIE ID PACJENTA PRZEZ LEKARZA (DoctorPage.js)
-router.put("/get-patient-data", async (req, res) => {
-  const db = client.db("DokumentyCyfrowe");
-  if (req.body.patientID) {
-    patient = await db
-      .collection("Pacjent")
-      .findOne({ id: req.body.patientID });
-    if (patient) {
-      patientID = req.body.patientID;
-      res.status(200).send(patientID);
-      return patientID;
-    } else {
-      res.status(400).send("NO SUCH PATIENT");
-    }
-  } else {
-    patientID = req.body.patientID;
-    res.status(200).send(patientID);
-    return patientID;
-  }
-});
-
 //POBRANIE WSZYSTKICH PACJENTÓW
 router.get("/patients", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
-  const patients = await db.collection("Pacjent").find({}).toArray();
+  const patients = await db
+    .collection("Pacjent")
+    .find({})
+    .toArray();
   res.send(patients);
 });
 
 //EDYCJA DANYCH PACJENTA (SideBar.js)
 router.put("/edit-patient-data", async (req, res) => {
-  const { name, sex, PESEL, telephone, address, icd10 } = req.body;
+  const { name, sex, PESEL, telephone, address, icd10, patientID } = req.body;
   const db = client.db("DokumentyCyfrowe");
+
   await db.collection("Pacjent").updateOne(
     { id: patientID },
     {
@@ -97,15 +80,10 @@ router.put("/edit-patient-data", async (req, res) => {
   return patient;
 });
 
-//POBRANIE INF O ZALOGOWANYM UŻYTKOWNIKU (Recommendations.js)
-router.get("/active-user", (req, res) => {
-  console.log(activeUser);
-  res.send(activeUser);
-});
-
 //POBRANIE INF O PACJENCIE (SideBar.js)
 router.get("/patient", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
+  const { patientID } = req.query;
   if (patientID !== "") {
     patient = await db.collection("Pacjent").findOne({ id: patientID });
 
@@ -116,6 +94,7 @@ router.get("/patient", async (req, res) => {
 
 //POBRANIE DOKUMENTACJI (Documentation.js)
 router.get("/documentation", async (req, res) => {
+  const { patientID } = req.query;
   const db = client.db("DokumentyCyfrowe");
   if (patientID !== "") {
     documents = await db
@@ -137,6 +116,7 @@ router.get("/documentation", async (req, res) => {
 //POBRANIE ZALECEŃ (Recommednations.js)
 router.get("/recommendations", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
+  const { patientID } = req.query;
   if (patientID !== "") {
     recommendations = await db
       .collection("Zalecenie")
@@ -151,6 +131,7 @@ router.get("/recommendations", async (req, res) => {
 //POBRANIE ZADAŃ PACJENTA (PatientPage.js, DoctorPage.js)
 router.get("/medical-process", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
+  const { patientID } = req.query;
   if (patientID !== "") {
     tasks = await db
       .collection("Zadanie")
@@ -164,6 +145,7 @@ router.get("/medical-process", async (req, res) => {
 //POBRANIE ZAŁĄCZONYCH DOKUMENTÓW (NewDocument.js)
 router.get("/attached-documents", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
+  const { patientID } = req.query;
   if (patientID !== "") {
     attachedDocuments = await db
       .collection("Zalacznik")
@@ -177,29 +159,31 @@ router.get("/attached-documents", async (req, res) => {
 //DODANIE NOWEGO DOKUMENTU (NewDocument.js)
 router.post("/new-document", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
-  const images = req.files ? req.files.files : null
+
   const {
+    patientID,
     documentType,
     title,
     testDate,
     referralID,
     orderingDoctor,
     performingDoctor,
-    content, 
-    
+    describingDoctor,
+    content
   } = req.body;
+
   const referralObject = ObjectId(referralID);
   newDocument = {
+    patientID,
     documentType,
     title,
-    patientID, //ze zmiennej
+    patientID,
     testDate,
     referral: referralObject,
     orderingDoctor,
     performingDoctor,
-    describingDoctor: activeUser.name, //ze zmiennej
-    content,
-    atachments: images
+    describingDoctor,
+    content
   };
   await db.collection("Badanie").insertOne(newDocument);
 
@@ -209,7 +193,8 @@ router.post("/new-document", async (req, res) => {
 //DODANIE ZALECENIA (NewRecommendation.js)
 router.post("/new-recommendation", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
-  const { date, content, attachments } = req.body;
+
+  const { date, content, attachments, patientID, doctor } = req.body;
   const attachmentsShort = attachments.map(item => {
     item = {
       title: item.title,
@@ -220,9 +205,8 @@ router.post("/new-recommendation", async (req, res) => {
   const newRecommendation = {
     date,
     content,
-    patientID: patientID,
-    doctor: activeUser.name,
-    doctorID: activeUser.ID,
+    patientID,
+    doctor,
     attachedDocuments: attachmentsShort
   };
   await db.collection("Zalecenie").insertOne(newRecommendation);
@@ -234,8 +218,6 @@ router.post("/attach-document", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
 
   const attachedDocument = req.body;
-  attachedDocument.doctor = activeUser.name;
-  attachedDocument.patientID = patientID;
   await db.collection("Zalacznik").insertOne(attachedDocument);
   res.send(attachedDocument._id);
   return attachedDocument._id;
@@ -245,21 +227,32 @@ router.post("/attach-document", async (req, res) => {
 router.post("/new-task", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
 
-  const { patientID, title, date, completed, details, previousTask } = req.body;
+  const {
+    patientID,
+    title,
+    date,
+    completed,
+    details,
+    previousTask,
+    doctor
+  } = req.body;
   const newTask = {
     patientID,
     title,
     date,
     completed,
     details,
-    addedBy: activeUser.name,
+    addedBy: doctor,
     previousTask,
     nextTasks: []
   };
   let newTaskId;
-  await db.collection("Zadanie").insertOne(newTask).then(result=>newTaskId=result.insertedId) 
- 
-//dodanie odnośnika do zadania poprzedzającego
+  await db
+    .collection("Zadanie")
+    .insertOne(newTask)
+    .then(result => (newTaskId = result.insertedId));
+
+  //dodanie odnośnika do zadania poprzedzającego
   if (previousTask !== "") {
     const previousTaskId = new ObjectId(previousTask);
     await db
@@ -291,19 +284,17 @@ router.put("/complete-task", async (req, res) => {
 
 //EDYCJA ZADANIA (DoctorPage.js)
 router.put("/edit-task", async (req, res) => {
-  const { id, title, details, date, previousTaskId } = req.body;
+  const { id, title, details, date, previousTaskId, patientID } = req.body;
   const db = client.db("DokumentyCyfrowe");
   const currentTaskId = ObjectId(id);
-  //console.log(id);
-  // console.log(currentTaskId)
+
   let previousTask;
   if (previousTaskId != "") {
     previousTask = ObjectId(previousTaskId);
   } else {
     previousTask = "";
   }
-  // console.log(previousTaskId);
-  // console.log(previousTask);
+
   //usunięcie odnośnika do zadania dotychczas ustawionego jako poprzedzające (jeśli jakieś bylo)
   const currentTask = await db
     .collection("Zadanie")
@@ -367,6 +358,7 @@ router.post("/lab-result", async (req, res) => {
     title,
     testDate,
     issueDate,
+    labTechnician,
     results
   } = req.body;
   const labOrderObject = ObjectId(labOrder);
@@ -377,8 +369,9 @@ router.post("/lab-result", async (req, res) => {
     labOrder: labOrderObject,
     orderingDoctor,
     testDate,
+    labTechnician,
     issueDate,
-    labTechnician: activeUser.name,
+
     results
   };
   await db.collection("BadanieLaboratoryjne").insertOne(newLabResult);
@@ -404,18 +397,15 @@ router.post("/login", async (req, res) => {
   }
   const user = await collection.findOne({ login });
   if (user) {
-    //console.log(user.password);
+
     await bcrypt.compare(password, user.password, function(err, result) {
       if (result === true) {
-        activeUser = {
+        let activeUser = {
           accountType,
           name: `${user.name} ${user.surname}`,
           ID: user.id
         };
-        if (accountType === "patient") {
-          patientID = user.id;
-        }
-
+       
         res.status(200).send(activeUser);
         return activeUser;
       } else {
@@ -540,9 +530,14 @@ router.get("/document", async (req, res) => {
     .collection("BadanieLaboratoryjne")
     .findOne({ _id: ObjectId(id) });
 
+  if (!document) {
+    document = await db.collection("Badanie").findOne({ _id: ObjectId(id) });
+  }
+
   console.log(document);
 
   res.send(document);
+  return document;
 });
 
 //POBRANIE PDF Z BADANIA
@@ -646,7 +641,7 @@ doc.end();
 
 
 client.connect(() => {
-  app.listen(process.env.PORT ||  3001, () => {
+  app.listen(process.env.PORT ||  3000, () => {
     console.log(`Server started on port ${process.env.PORT}`);
   });
 });
