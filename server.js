@@ -10,7 +10,8 @@ const saltRounds = 10;
 const PDFDocument = require("pdfkit");
 const fileUpload = require("express-fileupload");
 
-var pdfGenerator = require('./PDFGenerator');
+const examinationPDFGenerator = require('./ExaminationPDFGenerator');
+const attachementnPDFGenerator = require('./AttachmentPDFGenerator');
 
 let activeUser = {
   accountType: "",
@@ -545,7 +546,7 @@ router.get("/document", async (req, res) => {
 });
 
 //POBRANIE PDF Z BADANIA
-router.get("/document-pdf", async (req, res) => {
+router.get("/examination-pdf", async (req, res) => {
   const db = client.db("DokumentyCyfrowe");
   var id = req.query.id;
 
@@ -555,10 +556,17 @@ router.get("/document-pdf", async (req, res) => {
     return;
   }
 
-  let document = await db
+  let badanie = await db
+    .collection("Badanie")
+    .findOne({ _id: ObjectId(id) });
+
+  let badanieLaboratoryjne = await db
     .collection("BadanieLaboratoryjne")
     .findOne({ _id: ObjectId(id) });
 
+
+  let document = [badanie, badanieLaboratoryjne].filter(n => n)[0];
+  console.log(document);
   if (document == null) {
     res.status(500).send("Missing document");
     return;
@@ -581,14 +589,61 @@ router.get("/document-pdf", async (req, res) => {
   }
 
 const doc = new PDFDocument();
-pdfGenerator.generatePdf(doc, document, patient);
+examinationPDFGenerator.generateExaminationPDF(doc, document, patient);
 
 res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
 res.setHeader('Content-type', 'application/pdf')
 
 doc.pipe(res);
-doc.end()
+doc.end();
 });
+
+//POBRANIE PDF Z ZALACZNIKA
+router.get("/attachment-pdf", async (req, res) => {
+    const db = client.db("DokumentyCyfrowe");
+var id = req.query.id;
+
+console.log(id);
+if (id == null) {
+    res.status(500).send("Missing id of attachment");
+    return;
+}
+
+let document = await db
+    .collection("Zalacznik")
+    .findOne({ _id: ObjectId(id) });
+
+if (document == null) {
+    res.status(500).send("Missing attachment");
+    return;
+}
+
+var patientId = document.patientID;
+
+if (patientId == null) {
+    res.status(500).send("Missing id of patient");
+    return;
+}
+
+console.log(patientId);
+
+let patient = await db.collection("Pacjent").findOne({ id: patientId });
+
+if (patient == null) {
+    res.status(500).send("Missing patient");
+    return;
+}
+
+const doc = new PDFDocument();
+attachementnPDFGenerator.generateAttachmentPDF(doc, document, patient);
+
+res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
+res.setHeader('Content-type', 'application/pdf')
+
+doc.pipe(res);
+doc.end();
+});
+
 
 client.connect(() => {
   app.listen(process.env.PORT ||  3001, () => {
