@@ -14,6 +14,12 @@ exports.generateAttachmentPDF = function (doc, document, patient) {
         case attachmentTypes.SKIEROWANIE:
             skierowanie(doc, document, patient);
             break;
+        case attachmentTypes.ZWOLNIENIE:
+            zwolnienie(doc, document, patient);
+            break;
+        case attachmentTypes.ZLECENIE:
+            zlecenie(doc, document, patient);
+            break;
     }
 
 };
@@ -139,4 +145,58 @@ function skierowanie(doc, document, patient) {
     doc.font('fonts/times.ttf').fontSize(12).text('Cel: '+ document.aim, {align: 'center'})
     doc.moveDown();
     doc.font('fonts/times.ttf').fontSize(12).text('Diagnoza: ' + document.diagnosis, {align: 'center'})
+}
+
+function zwolnienie(doc, document, patient) {
+    //doc = new PDFDocument({ layout:'landscape'});
+
+    doc.fontSize(15).text('Lekarz: '+document.doctor, 30, 40);
+
+    doc.fontSize(15).text('Data: ' + document.issueDate, 420,40);
+
+    doc.font('fonts/timesbd.ttf').fontSize(25).text('ZAŚWIADCZENIE LEKARSKIE', 230, 140 );
+
+    doc.font('fonts/timesbd.ttf').fontSize(16).text('Pacjent: ', 30, 220);
+    //doc.fontSize(15).text('Dane osobowe:', 30, 220);
+    doc.fontSize(15).text('Imię i nazwisko: ' + patient.name + ' ' + patient.surname, 30, 255);
+    doc.fontSize(15).text('PESEL: ' + patient.PESEL, 30, 285);
+    doc.fontSize(15).text('Miejsce zamieszkania: ' + patient.address, 30, 315);
+    doc.fontSize(15).text('Miejsce pracy: ' + document.placeOfWork, 30, 345);
+    doc.fontSize(15).text('Okres niezdolności do pracy od ' + document.startDate + ' do ' + document.endDate, 30, 375);
+
+    doc.fontSize(15).text('..............................................', 360, 510);
+    doc.fontSize(10).text('podpis lekarza', 420, 525);
+}
+
+function zlecenie(doc, document, patient) {
+    doc.font('fonts/timesbd.ttf').fontSize(15).text('Data: ', 400, 20);
+
+    doc.fontSize(20).text('LABORATORIUM DIAGNOSTYCZNE', 20, 60);
+    doc.fontSize(15).text('(nazwa laboratorium, adres)', 20, 80);
+
+    doc.fontSize(15).text(patient.surname + ' ' + patient.name, 20, 130);
+    doc.fontSize(10).text('Nazwisko i imie', 20, 150);
+
+    doc.fontSize(15).text(patient.PESEL, 300, 130);
+    doc.fontSize(10).text('PESEL', 300, 150);
+
+    doc.fontSize(15).text(patient.sex, 500, 130);
+    doc.fontSize(10).text('Plec', 500, 150);
+
+    doc.fontSize(10).text(patient.address, 20, 190);
+    doc.fontSize(10).text('adres', 20, 210);
+
+    doc.fontSize(10).text(patient.telephone, 490, 190);
+    doc.fontSize(10).text('nr telefonu', 490, 210);
+
+    doc.fontSize(20).text('Zlecone badania', 230, 240);
+
+    // for (var row = 0, position = 280; row < document.labTests.length; row++, position += 20) {
+    //     doc.fontSize(15).text(document.labTests[row], 40, position);
+    // }
+
+    doc.fontSize(14).text('Inne:', 20, 609.9);
+
+    doc.fontSize(14).text('..........................................................', 300, 685.9);
+    doc.fontSize(14).text('dane i podpis lekarza pobierajacego:', 300, 699.9);
 }
