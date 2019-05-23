@@ -2,7 +2,7 @@ const attachmentTypes = {
     RECEPTA: 'recepta',
     ZWOLNIENIE: 'zwolnienie',
     SKIEROWANIE: 'skierowanie',
-    ZLECENIE: 'zlecenie badań'
+    ZLECENIE: 'zlecenie badan'
 };
 
 
@@ -191,9 +191,9 @@ function zlecenie(doc, document, patient) {
 
     doc.fontSize(20).text('Zlecone badania', 230, 240);
 
-    // for (var row = 0, position = 280; row < document.labTests.length; row++, position += 20) {
-    //     doc.fontSize(15).text(document.labTests[row], 40, position);
-    // }
+    for (var row = 0, position = 280; row < document.labTests.length; row++, position += 20) {
+        doc.fontSize(15).text(document.labTests[row], 40, position);
+    }
 
     doc.fontSize(14).text('Inne:', 20, 609.9);
 
