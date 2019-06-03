@@ -584,14 +584,19 @@ router.get("/examination-pdf", async (req, res) => {
   }
 
 const doc = new PDFDocument();
-examinationPDFGenerator.generateExaminationPDF(doc, document, patient);
 
-res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
+await examinationPDFGenerator.generateExaminationPDF(doc, document, patient);
+    var documentTitle = document.title.replace(/[^\x00-\x7F]/g, "");
+    var patientSurname = patient.surname.replace(/[^\x00-\x7F]/g, "");
+
+    res.setHeader('Content-disposition', 'attachment; filename="' + documentTitle + "_" + patientSurname + '"')
 res.setHeader('Content-type', 'application/pdf')
 
 doc.pipe(res);
 doc.end();
 });
+
+
 
 //POBRANIE PDF Z ZALACZNIKA
 router.get("/attachment-pdf", async (req, res) => {
@@ -634,11 +639,14 @@ if (patient == null) {
 console.log(patient);
 
 const doc = new PDFDocument();
+
 attachmentPDFGenerator.generateAttachmentPDF(doc, document, patient);
 
-res.setHeader('Content-disposition', 'attachment; filename="' + document.title + "_" + patient.surname + '"')
-res.setHeader('Content-type', 'application/pdf')
+var documentTitle = document.title.replace(/[^\x00-\x7F]/g, "");
+var patientSurname = patient.surname.replace(/[^\x00-\x7F]/g, "");
 
+res.setHeader('Content-disposition', 'attachment; filename="' + documentTitle + "_" + patientSurname + '"')
+res.setHeader('Content-type', 'application/pdf');
 doc.pipe(res);
 doc.end();
 });
