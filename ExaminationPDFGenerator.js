@@ -2,6 +2,9 @@
  * Created by weron on 20.05.2019.
  */
 
+const axios = require("axios");
+const request = require("request");
+
 const examinationTypes = {
     BADANIE_KRWI: 'Badanie krwi',
     BADANIE_USG: 'Badanie USG',
@@ -12,7 +15,7 @@ const examinationTypes = {
     BADANIE_MRI: 'Rezonans magnetyczny'
 };
 
-exports.generateExaminationPDF = function (doc, document, patient) {
+exports.generateExaminationPDF = async function (doc, document, patient) {
     switch (document.documentType) {
         case examinationTypes.BADANIE_KRWI:
             badanieKrwi(doc, document, patient);
@@ -23,7 +26,7 @@ exports.generateExaminationPDF = function (doc, document, patient) {
         case examinationTypes.BADANIE_ANGIO:
         case examinationTypes.BADANIE_TK:
         case examinationTypes.BADANIE_MRI:
-            badanieObrazowe(doc, document, patient);
+            await badanieObrazowe(doc, document, patient);
             break;
     }
 
@@ -31,7 +34,6 @@ exports.generateExaminationPDF = function (doc, document, patient) {
 
 
 function badanieKrwi(doc, document, patient) {
-
     doc.font('fonts/timesbd.ttf').fontSize(16).text('Pacjent: ');
 
     doc.moveDown();
@@ -81,21 +83,23 @@ function badanieKrwi(doc, document, patient) {
     doc.fontSize(12).text('Osoba wykonujaca: ' + document.labTechnician, 70, 700)
 }
 
-function badanieObrazowe(doc, document, patient) {
+async function badanieObrazowe(doc, document, patient) {
+    console.log("Hello o/")
+
     doc.font('fonts/timesbd.ttf').fontSize(16).text('Pacjent: ');
 
     doc.moveDown();
     doc.font('fonts/times.ttf').fontSize(12).text('Imię i nazwisko: '+ patient.name + " " + patient.surname)
     doc.moveDown();
-    doc.fontSize(12).text('Adres: '+ patient.address)
+    doc.fontSize(12).text('Adres: '+ patient.address);
     doc.moveDown();
-    doc.fontSize(12).text('PESEL: '+ patient.PESEL)
+    doc.fontSize(12).text('PESEL: '+ patient.PESEL);
     doc.moveDown();
-    doc.fontSize(12).text('Telefon: '+ patient.telephone)
+    doc.fontSize(12).text('Telefon: '+ patient.telephone);
     doc.moveDown();
-    doc.fontSize(12).text('Płeć: '+ patient.sex)
+    doc.fontSize(12).text('Płeć: '+ patient.sex);
     doc.moveDown();
-    doc.fontSize(12).text('Lekarz zlecający: '+ document.orderingDoctor)
+    doc.fontSize(12).text('Lekarz zlecający: '+ document.orderingDoctor);
     doc.moveDown();
     doc.moveDown();
 
@@ -115,4 +119,38 @@ function badanieObrazowe(doc, document, patient) {
     doc.moveDown();
     doc.fontSize(12).text('Osoba wykonujaca: ' + document.performingDoctor, 70, 700)
     doc.fontSize(12).text('Osoba opisująca: ' + document.describingDoctor, 340, 700)
+
+    doc.addPage()
+
+    const url = "https://res.cloudinary.com/mickanie/image/list/medical_documentation.json";
+
+    const getData = async url => {
+        try {
+            const response = await axios.get(url);
+            const data = response.data.resources;
+
+            console.log(data);
+
+            var file = data.filter(obj => {
+                return obj.public_id.includes(document._id)
+            });
+            console.log("Hello o/");
+            console.log(file);
+
+            let firstFile = file[0];
+            imgLink = "https://res.cloudinary.com/mickanie/image/upload/v" + firstFile.version + "/" + firstFile.public_id + ".jpg"
+            console.log(imgLink);
+
+            const result = await axios.get(imgLink,  {
+                responseType: 'arraybuffer'
+            });
+            var image = new Buffer(result.data, 'base64')
+            doc.image(image, 0, 0);
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    await getData(url);
+
 }
